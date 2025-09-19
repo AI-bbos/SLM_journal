@@ -1,0 +1,26 @@
+{
+  "embedding": {
+    "model_type": "all-MiniLM-L6-v2",
+    "batch_size": 4,
+    "cache_size": 500,
+    "use_cache": false
+  },
+  "llm": {
+    "model_type": "mock",
+    "n_threads": 4,
+    "use_metal": false
+  },
+  "ingestion": {
+    "max_tokens": 200,
+    "overlap_tokens": 20,
+    "min_chunk_size": 100,
+    "batch_size": 25
+  },
+  "storage": {
+    "index_type": "Flat"
+  },
+  "search": {
+    "k": 5,
+    "max_context_tokens": 1024
+  }
+}
