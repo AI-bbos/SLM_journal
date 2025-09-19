@@ -1,0 +1,39 @@
+# Core dependencies
+pydantic==2.9.0
+pydantic-settings==2.5.0
+python-dateutil==2.9.0
+
+# Data processing
+numpy==1.26.4
+pandas==2.2.2
+tqdm==4.66.5
+beautifulsoup4==4.12.3
+lxml==5.3.0
+markdownify==0.13.1
+
+# Embeddings and ML
+sentence-transformers==3.1.0
+torch==2.4.1
+faiss-cpu==1.8.0
+
+# Local LLM
+llama-cpp-python==0.2.90
+
+# Storage
+sqlalchemy==2.0.32
+aiosqlite==0.20.0
+
+# CLI
+click==8.1.7
+rich==13.8.0
+python-dotenv==1.0.1
+
+# Testing
+pytest==8.3.2
+pytest-asyncio==0.24.0
+pytest-mock==3.14.0
+
+# Development
+black==24.8.0
+ruff==0.6.4
+mypy==1.11.2
