@@ -11,8 +11,8 @@ class EmbeddingConfig(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
     model_type: str = "all-MiniLM-L6-v2"
-    batch_size: int = 32
-    cache_size: int = 10000
+    batch_size: int = 8  # Reduced from 32 to lower memory usage
+    cache_size: int = 1000  # Reduced from 10000 to save memory
     use_cache: bool = True
 
 
@@ -52,10 +52,11 @@ class SearchConfig(BaseModel):
 class IngestionConfig(BaseModel):
     """Configuration for data ingestion."""
     recursive: bool = True
-    max_tokens: int = 512
-    overlap_tokens: int = 50
+    max_tokens: int = 256  # Reduced from 512 to lower memory usage
+    overlap_tokens: int = 25  # Reduced from 50
     min_chunk_size: int = 100
     preserve_sentences: bool = True
+    batch_size: int = 50  # Process entries in smaller batches
 
 
 class Config(BaseSettings):
