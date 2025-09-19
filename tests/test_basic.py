@@ -84,7 +84,7 @@ def test_config_creation():
     config = Config()
 
     assert config.embedding.model_type == "all-MiniLM-L6-v2"
-    assert config.llm.model_type == "local"
+    assert config.llm.model_type == "mock"
     assert config.search.k == 10
 
 
