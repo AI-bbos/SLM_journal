@@ -30,38 +30,62 @@ class EmbeddingService:
         show_progress: bool = True
     ) -> Dict[str, np.ndarray]:
         """
-        Generate embeddings for journal entries.
+        Generate embeddings for journal entries with minimal memory usage.
 
         Returns:
             Dictionary mapping entry IDs to embeddings
         """
         embeddings = {}
+        import gc
 
-        texts = []
-        entry_ids = []
-
-        for entry in entries:
-            text = self._prepare_entry_text(entry)
-            texts.append(text)
-            entry_ids.append(entry.id)
+        # Use very small batch size to minimize memory usage
+        ultra_small_batch = min(self.batch_size, 2)  # Never more than 2 at once
 
         if show_progress:
-            pbar = tqdm(total=len(texts), desc="Generating embeddings")
+            pbar = tqdm(total=len(entries), desc="Generating embeddings")
 
-        for i in range(0, len(texts), self.batch_size):
-            batch_texts = texts[i:i + self.batch_size]
-            batch_ids = entry_ids[i:i + self.batch_size]
+        # Process entries in ultra-small batches
+        for i in range(0, len(entries), ultra_small_batch):
+            batch_entries = entries[i:i + ultra_small_batch]
 
-            batch_embeddings = self.model.encode(batch_texts, self.batch_size)
+            batch_texts = []
+            batch_ids = []
 
-            for entry_id, embedding in zip(batch_ids, batch_embeddings):
-                embeddings[entry_id] = embedding
+            for entry in batch_entries:
+                text = self._prepare_entry_text(entry)
+                batch_texts.append(text)
+                batch_ids.append(entry.id)
 
-            if show_progress:
-                pbar.update(len(batch_texts))
+            try:
+                # Generate embeddings with smallest possible batch
+                batch_embeddings = self.model.encode(batch_texts, len(batch_texts))
+
+                for entry_id, embedding in zip(batch_ids, batch_embeddings):
+                    embeddings[entry_id] = embedding
+
+                # Aggressively clean up
+                del batch_texts
+                del batch_ids
+                del batch_embeddings
+                del batch_entries
+
+                if show_progress:
+                    pbar.update(len(batch_entries))
+
+                # Force garbage collection every few iterations
+                if i % 10 == 0:
+                    gc.collect()
+
+            except Exception as e:
+                logger.error(f"Error generating embeddings for batch {i}: {e}")
+                # Continue with next batch
+                continue
 
         if show_progress:
             pbar.close()
+
+        # Final cleanup
+        gc.collect()
 
         logger.info(f"Generated {len(embeddings)} embeddings")
         return embeddings
