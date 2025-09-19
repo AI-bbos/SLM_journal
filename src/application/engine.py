@@ -111,7 +111,7 @@ class QueryEngine:
         else:
             raise ValueError(f"Unknown LLM type: {self.config.llm.model_type}")
 
-    def ingest_data(self, force_rebuild: bool = False, batch_size: int = 100) -> Dict[str, Any]:
+    def ingest_data(self, force_rebuild: bool = False, batch_size: int = 10) -> Dict[str, Any]:
         """Ingest journal data and build indexes in batches to reduce memory usage.
 
         Args:
@@ -151,39 +151,63 @@ class QueryEngine:
                 index_type=self.config.storage.index_type
             )
 
-        # Process entries in batches to reduce memory usage
+        # Process entries one by one to minimize memory usage
         total_entries = 0
         entry_batch = []
+
+        # Use streaming with ultra-small batches
+        import gc
 
         for entry in ingester.ingest_entries():
             entry_batch.append(entry)
 
-            # Process batch when it reaches batch_size
+            # Process very small batches
             if len(entry_batch) >= batch_size:
-                # Generate embeddings for this batch
-                batch_embeddings = self.embedding_service.embed_entries(entry_batch, show_progress=False)
+                try:
+                    # Generate embeddings for this tiny batch with minimal batch size
+                    batch_embeddings = self.embedding_service.embed_entries(
+                        entry_batch,
+                        show_progress=False
+                    )
 
-                # Store batch data
-                self.metadata_store.add_entries(entry_batch)
-                self.vector_store.add(batch_embeddings)
+                    # Store batch data
+                    self.metadata_store.add_entries(entry_batch)
+                    self.vector_store.add(batch_embeddings)
 
-                total_entries += len(entry_batch)
-                logger.info(f"Processed {total_entries} entries...")
+                    total_entries += len(entry_batch)
 
-                # Clear batch to free memory
-                entry_batch = []
-                batch_embeddings = None
+                    # More frequent progress updates
+                    if total_entries % 50 == 0:
+                        logger.info(f"Processed {total_entries} entries...")
 
-                # Force garbage collection to free memory
-                import gc
-                gc.collect()
+                    # Aggressively clear memory
+                    del entry_batch
+                    del batch_embeddings
+                    entry_batch = []
+
+                    # Force multiple garbage collections
+                    gc.collect()
+                    gc.collect()  # Sometimes need multiple calls
+
+                except Exception as e:
+                    logger.error(f"Error processing batch at entry {total_entries}: {e}")
+                    # Continue with next batch on error
+                    entry_batch = []
+                    gc.collect()
+                    continue
 
         # Process remaining entries
         if entry_batch:
-            batch_embeddings = self.embedding_service.embed_entries(entry_batch, show_progress=False)
-            self.metadata_store.add_entries(entry_batch)
-            self.vector_store.add(batch_embeddings)
-            total_entries += len(entry_batch)
+            try:
+                batch_embeddings = self.embedding_service.embed_entries(entry_batch, show_progress=False)
+                self.metadata_store.add_entries(entry_batch)
+                self.vector_store.add(batch_embeddings)
+                total_entries += len(entry_batch)
+                del entry_batch
+                del batch_embeddings
+                gc.collect()
+            except Exception as e:
+                logger.error(f"Error processing final batch: {e}")
 
         if total_entries == 0:
             logger.warning("No entries found in data path")
@@ -192,12 +216,20 @@ class QueryEngine:
         # Save vector store
         self.vector_store.save(self.config.storage.vector_store_path)
 
+        # Final cleanup before creating searcher
+        gc.collect()
+
         # Update searcher
-        self.searcher = SemanticSearcher(
-            self.embedding_service,
-            self.vector_store,
-            self.metadata_store
-        )
+        try:
+            self.searcher = SemanticSearcher(
+                self.embedding_service,
+                self.vector_store,
+                self.metadata_store
+            )
+        except Exception as e:
+            logger.error(f"Error creating searcher: {e}")
+            # Continue without searcher for now
+            self.searcher = None
 
         stats = self.metadata_store.get_statistics()
         logger.info(f"Ingestion complete: {stats['total_entries']} entries")
