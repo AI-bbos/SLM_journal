@@ -40,26 +40,35 @@ class EmbeddingModel(ABC):
 class SentenceTransformerModel(EmbeddingModel):
     """Sentence transformer embedding model optimized for macOS."""
 
-    def __init__(self, model_type: ModelType = ModelType.MINILM):
+    def __init__(self, model_type: ModelType = ModelType.MINILM, use_cpu_only: bool = False):
         try:
             from sentence_transformers import SentenceTransformer
             import torch
+            import os
 
-            torch.set_num_threads(8)
+            # Set thread count based on environment or default
+            num_threads = int(os.environ.get('JOURNAL_EMBEDDING_THREADS', '4'))
+            torch.set_num_threads(num_threads)
 
-            if torch.backends.mps.is_available():
+            # Allow forcing CPU mode for memory-constrained environments
+            if use_cpu_only or os.environ.get('JOURNAL_USE_CPU_ONLY', 'false').lower() == 'true':
+                self.device = 'cpu'
+                logger.info(f"Using CPU for inference with {num_threads} threads")
+            elif torch.backends.mps.is_available():
                 self.device = 'mps'
                 logger.info("Using Apple Metal Performance Shaders (MPS) for acceleration")
             else:
                 self.device = 'cpu'
-                logger.info("Using CPU for inference")
+                logger.info(f"Using CPU for inference with {num_threads} threads")
 
             self.model = SentenceTransformer(
                 model_type.value,
                 device=self.device
             )
 
-            self.model.max_seq_length = 512
+            # Reduce max sequence length for memory efficiency
+            max_seq_length = int(os.environ.get('JOURNAL_EMBEDDING_MAX_SEQ_LENGTH', '256'))
+            self.model.max_seq_length = max_seq_length
 
             self._model_type = model_type
             self._dimension = self.model.get_sentence_embedding_dimension()
@@ -167,7 +176,8 @@ class EmbeddingModelFactory:
     def create(
         model_type: Union[str, ModelType] = ModelType.MINILM,
         use_cache: bool = True,
-        cache_size: int = 10000
+        cache_size: int = 10000,
+        use_cpu_only: bool = False
     ) -> EmbeddingModel:
         """Create an embedding model."""
         if isinstance(model_type, str):
@@ -177,7 +187,7 @@ class EmbeddingModelFactory:
                 model_type = ModelType.MINILM
                 logger.warning(f"Unknown model type, using {model_type.value}")
 
-        base_model = SentenceTransformerModel(model_type)
+        base_model = SentenceTransformerModel(model_type, use_cpu_only=use_cpu_only)
 
         if use_cache:
             return CachedEmbeddingModel(base_model, cache_size)
