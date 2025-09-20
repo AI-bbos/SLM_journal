@@ -38,8 +38,8 @@ models/
 *.bin
 *.safetensors
 
-# Storage (generated data)
-storage/
+# Storage (generated data) - only ignore root storage directory
+/storage/
 *.db
 *.faiss
 
