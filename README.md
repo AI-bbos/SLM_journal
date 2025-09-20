@@ -1,6 +1,6 @@
 # Personal Journal Query System
 
-A sophisticated RAG (Retrieval-Augmented Generation) system for querying personal journal entries using local AI models. Built with Python and optimized for Apple Silicon Macs.
+A sophisticated RAG (Retrieval-Augmented Generation) system for querying personal journal entries using local AI models. Build your searchable knowledge base locally with privacy-first design.
 
 ## Features
 
@@ -10,7 +10,8 @@ A sophisticated RAG (Retrieval-Augmented Generation) system for querying persona
 - **Intelligent Chunking**: Automatically splits long entries while preserving context
 - **Rich CLI Interface**: Beautiful command-line interface with Rich
 - **Flexible Queries**: Question answering, summarization, emotion analysis, goal tracking
-- **Apple Silicon Optimized**: Leverages Metal Performance Shaders for acceleration
+- **Local Processing**: Query your journals privately on your own machine
+- **Cloud Indexing Support**: Process large datasets using Google Colab or cloud services
 
 ## Quick Start
 
@@ -72,15 +73,35 @@ Example HTML structure that works well:
 
 ### 3. Index Your Journals
 
+#### For Small to Medium Collections (< 500 entries)
 ```bash
 python main.py index
 ```
 
-This will:
-- Parse all journal files
-- Generate embeddings using sentence-transformers
-- Build a searchable vector index
-- Store metadata in SQLite
+#### For Large Collections (1000+ entries)
+For large journal collections, indexing requires significant memory. You have three options:
+
+**Option A: Emergency Local Mode** (slow but works on 32GB+ Macs)
+```bash
+./index_emergency_low_memory.sh
+```
+
+**Option B: Google Colab** (recommended - free and fast)
+```bash
+# See CLOUD_PROCESSING.md for complete instructions
+# Upload your journals to Colab, index there, download results
+```
+
+**Option C: Cloud Server** (AWS, etc.)
+```bash
+# See CLOUD_PROCESSING.md for AWS setup instructions
+```
+
+The indexing process:
+- Parses all journal files
+- Generates embeddings using sentence-transformers
+- Builds a searchable vector index
+- Stores metadata in SQLite
 
 **Note**: The system starts with a mock AI model for immediate functionality. See [Model Setup](#model-setup) below for upgrading to local AI models.
 
@@ -270,21 +291,30 @@ src/
 
 ## Hardware Requirements
 
-### Minimum
-- MacBook Air M1 (8GB RAM)
-- 2GB free disk space
-- macOS 11.0+
+### For Querying (after indexing)
+- **Minimum**: MacBook Air M1 (8GB RAM)
+- **Recommended**: Any Mac with 16GB+ RAM
+- 2GB free disk space for indexed data
+- macOS 11.0+ or Linux/Windows
 
-### Recommended
-- MacBook Pro M1/M2/M3 (16GB+ RAM)
-- 5GB free disk space for models
-- SSD storage
+### For Local Indexing
+- **Small collections** (< 500 entries): 16GB+ RAM
+- **Medium collections** (500-1000 entries): 32GB+ RAM
+- **Large collections** (1000+ entries): **Cloud processing recommended**
+- 5GB free disk space for models and indices
+- SSD storage recommended
 
 ### Performance Notes
-- Embedding generation: ~100 entries/second
-- Query response: 2-5 seconds typical
-- Memory usage: 2-4GB during operation
+- **Indexing**: Memory-intensive, see [Memory Optimization Guide](MEMORY_OPTIMIZATION.md)
+- **Querying**: Fast and lightweight (~2-5 seconds, 2-4GB RAM)
+- **Apple Silicon**: Optimized for querying with Metal Performance Shaders
 - Models cached locally after first download
+
+### Cloud Processing
+For large journal collections, cloud processing is more reliable:
+- **Google Colab**: Free, 12GB+ RAM, GPU acceleration
+- **AWS t3.xlarge**: ~$0.17/hour, 16GB RAM
+- **Local emergency mode**: Very slow but works on 32GB+ systems
 
 ## Troubleshooting
 
@@ -316,12 +346,18 @@ ollama pull llama2
 export JOURNAL_LLM_MODEL_TYPE="ollama"
 ```
 
-**Memory Issues**
+**Memory Issues During Indexing**
 ```bash
-# Reduce batch size in config
-export JOURNAL_EMBEDDING_BATCH_SIZE=16
-# Use smaller model
-export JOURNAL_LLM_MODEL_NAME="phi-2"
+# For large datasets, use emergency mode
+./index_emergency_low_memory.sh
+
+# Or use optimized configuration
+export JOURNAL_EMBEDDING__BATCH_SIZE=1
+export JOURNAL_USE_CPU_ONLY=true
+export JOURNAL_EMBEDDING__USE_CACHE=false
+
+# Best option: Use cloud processing
+# See CLOUD_PROCESSING.md for complete guide
 ```
 
 **No Results Found**
