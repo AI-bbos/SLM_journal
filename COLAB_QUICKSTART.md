@@ -27,20 +27,37 @@ for filename in uploaded.keys():
 ```python
 # Clone the repository
 !git clone https://github.com/AI-bbos/SLM_journal.git
+
+# IMPORTANT: Navigate to the correct directory
 %cd SLM_journal
+!pwd  # Should show /content/SLM_journal
 
 # Install dependencies
 !pip install -q -r requirements.txt
 
-# Run setup script to configure environment
-!python colab_setup.py
+# Verify we're in the right place
+!ls  # Should show main.py, src/, requirements.txt, etc.
 ```
 
 ## Step 3: Index Your Journals
 
 ```python
-# Index your journal data (this is the memory-intensive part)
+# Method 1: Use the robust launcher (recommended)
+!python colab_runner.py --data-path /content/journal_data index --force
+
+# Method 2: Use the standard launcher (if you're sure you're in the right directory)
 !python main.py --data-path /content/journal_data index --force
+```
+
+### If you get import errors:
+```python
+# Check your location and fix if needed
+!pwd
+%cd /content/SLM_journal  # Navigate to correct directory
+!ls  # Verify main.py and src/ are present
+
+# Try the robust launcher
+!python colab_runner.py --data-path /content/journal_data index --force
 ```
 
 ## Step 4: Test Queries
